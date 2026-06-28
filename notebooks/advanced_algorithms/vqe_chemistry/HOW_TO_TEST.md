@@ -108,7 +108,12 @@ In the imports cell:
 
 - `RUN_ON_SV1 = True` evaluates the converged water energy on Amazon Braket SV1 (cheap,
   analytic; expect about -74.97045946 Ha).
-- `SUBMIT_TO_QPU = True` submits a live H2 energy to IonQ Forte (billable, can queue for hours).
+- `SUBMIT_TO_QPU = True` submits the H2 energy to IonQ Forte as non-blocking tasks (one per
+  measurement group) and saves their ARNs to `ionq_live_tasks.json`. It does not wait for
+  results, so the kernel never hangs on the QPU queue. Make sure `IONQ_FORTE_ARN` points at an
+  IonQ device that is currently ONLINE (check the Braket console).
+- `FETCH_FROM_ARNS = True` (run later, after the tasks show COMPLETED) reads the ARNs from
+  `ionq_live_tasks.json`, pulls each result by ARN, and reduces them to the energy.
 
 On a Braket notebook instance the execution role supplies credentials. Locally, configure AWS
 credentials for us-east-1 first. To reproduce the cached hardware energies from completed tasks,

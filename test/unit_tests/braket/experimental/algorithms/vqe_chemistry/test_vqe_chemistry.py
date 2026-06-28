@@ -81,3 +81,27 @@ def _doubled(result):
     dimer.fci_energy = 2 * result.fci_energy
     dimer.vqe_energy = 2 * result.vqe_energy
     return dimer
+
+
+def test_prepare_h2_hardware_structure():
+    from braket.experimental.algorithms.vqe_chemistry import prepare_h2_hardware
+
+    prep = prepare_h2_hardware(0.2259)
+    assert prep["n_qubits"] == 4
+    assert len(prep["circuits"]) == len(prep["groups"]) == 5  # 5 QWC groups for H2
+    assert np.isclose(prep["fci"], H2_FCI_HA, atol=1e-6)
+    assert isinstance(prep["identity"], float)
+
+
+def test_energy_from_measurements_reduction():
+    from braket.experimental.algorithms.vqe_chemistry import energy_from_measurements
+
+    # One group, one term: <Z0> with all-zero bitstrings is +1; with all-ones is -1.
+    prep = {"identity": 0.0, "groups": [[({0: "Z"}, 1.0)]]}
+    zeros = np.zeros((100, 4), dtype=int)
+    ones = np.ones((100, 4), dtype=int)
+    assert np.isclose(energy_from_measurements(prep, [zeros]), 1.0)
+    assert np.isclose(energy_from_measurements(prep, [ones]), -1.0)
+    # identity adds directly
+    prep2 = {"identity": 0.5, "groups": []}
+    assert np.isclose(energy_from_measurements(prep2, []), 0.5)

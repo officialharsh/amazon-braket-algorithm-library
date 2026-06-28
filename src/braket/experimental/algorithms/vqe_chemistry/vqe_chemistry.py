@@ -312,3 +312,134 @@ def compute_binding_energy(
         "binding_energy_kcal_per_mol": e_bind_ha * HARTREE_TO_KCAL,
         "source": "FCI" if use_fci else "VQE",
     }
+
+
+# ---------------------------------------------------------------------------
+# H2 hardware helpers: non-blocking submit + fetch-by-ARN
+#
+# A QPU task can queue for a long time. Blocking on the result inside a Jupyter
+# kernel hangs (and tangles its async loop), so for hardware we decouple submission
+# from retrieval: submit returns task ARNs immediately; a later call fetches the
+# completed results by ARN and reduces them to an energy. These helpers use the
+# Amazon Braket SDK directly (not a blocking PennyLane QNode) so we control the
+# task objects. They target the minimal 4-qubit H2 ansatz used in the notebook.
+# ---------------------------------------------------------------------------
+def _h2_hamiltonian(bond_bohr: float = 1.4):
+    symbols = ["H", "H"]
+    geometry = pnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, bond_bohr]])
+    mol = qml.qchem.Molecule(symbols, geometry, basis_name="sto-3g")
+    H, n = qml.qchem.molecular_hamiltonian(
+        mol, mapping="jordan_wigner", active_electrons=2, active_orbitals=2
+    )
+    return H, n
+
+
+def _pauli_map(obs) -> dict:
+    """Map a single-Pauli-word observable to {wire: 'X'|'Y'|'Z'}; {} for identity."""
+    for pauli_word in obs.pauli_rep:
+        return {int(w): p for w, p in dict(pauli_word).items()}
+    return {}
+
+
+def _h2_ansatz_ops(theta: float, n_qubits: int = 4):
+    """Minimal H2 ansatz as PennyLane ops decomposed to {PauliX, Hadamard, RY, CNOT}."""
+    ops = [qml.PauliX(0), qml.PauliX(1)]  # Hartree-Fock |1100>
+    ops += qml.DoubleExcitation(theta, wires=range(n_qubits)).decomposition()
+    return ops
+
+
+def _braket_circuit(ansatz_ops, basis: dict):
+    """Translate ansatz ops to a Braket Circuit and append measurement-basis rotations.
+
+    basis maps a qubit to the Pauli ('X'/'Y'/'Z') it is measured in for this group;
+    X -> H, Y -> S-dagger then H, Z/absent -> no rotation. The circuit is then measured
+    in the computational basis (raw shots).
+    """
+    from braket.circuits import Circuit
+
+    c = Circuit()
+    for op in ansatz_ops:
+        name = op.name
+        w = [int(x) for x in op.wires]
+        if name == "PauliX":
+            c.x(w[0])
+        elif name == "Hadamard":
+            c.h(w[0])
+        elif name == "RY":
+            c.ry(w[0], float(op.parameters[0]))
+        elif name == "CNOT":
+            c.cnot(w[0], w[1])
+        else:
+            raise ValueError(f"unexpected gate in H2 ansatz: {name}")
+    for q, pauli in basis.items():
+        if pauli == "X":
+            c.h(q)
+        elif pauli == "Y":
+            c.si(q)
+            c.h(q)
+    return c
+
+
+def prepare_h2_hardware(theta: float, bond_bohr: float = 1.4) -> dict:
+    """Build per-(QWC group) Braket circuits for the minimal H2 ansatz at angle theta.
+
+    Returns a dict with:
+      - circuits: list of Braket Circuit (one per qubit-wise-commuting group)
+      - groups:   list (aligned with circuits) of [(pauli_map, coeff), ...] terms
+      - identity: identity-term coefficient (added directly to the energy)
+      - fci:      exact active-space energy (for comparison)
+      - n_qubits, theta, bond_bohr
+    The structure is deterministic in theta, so fetch can rebuild it without storing it.
+    """
+    H, n = _h2_hamiltonian(bond_bohr)
+    coeffs, ops = H.terms()
+    e_fci = exact_ground_state_energy(H, n)
+    ansatz_ops = _h2_ansatz_ops(theta, n)
+
+    identity, obs, obs_coeffs = 0.0, [], []
+    for c, o in zip(coeffs, ops):
+        pmap = _pauli_map(o)
+        if not pmap:
+            identity += float(c)
+        else:
+            obs.append(o)
+            obs_coeffs.append(float(c))
+
+    grouped_ops, grouped_coeffs = qml.pauli.group_observables(
+        obs, obs_coeffs, grouping_type="qwc", method="rlf"
+    )
+
+    circuits, groups = [], []
+    for g_ops, g_coeffs in zip(grouped_ops, grouped_coeffs):
+        basis, terms = {}, []
+        for o, c in zip(g_ops, g_coeffs):
+            pmap = _pauli_map(o)
+            basis.update(pmap)
+            terms.append((pmap, float(c)))
+        circuits.append(_braket_circuit(ansatz_ops, basis))
+        groups.append(terms)
+
+    return {
+        "circuits": circuits,
+        "groups": groups,
+        "identity": identity,
+        "fci": e_fci,
+        "n_qubits": n,
+        "theta": float(theta),
+        "bond_bohr": bond_bohr,
+    }
+
+
+def energy_from_measurements(prep: dict, measurements_per_group: list) -> float:
+    """Reduce raw measurement arrays (one (shots, n_qubits) array per group) to energy.
+
+    For a Pauli word P with support S, <P> = mean over shots of prod_{q in S} (-1)^bit[q].
+    """
+    energy = prep["identity"]
+    for terms, meas in zip(prep["groups"], measurements_per_group):
+        meas = np.asarray(meas)
+        for pmap, coeff in terms:
+            qubits = sorted(pmap.keys())
+            signs = np.prod(1 - 2 * meas[:, qubits], axis=1)  # (-1)^bit
+            energy += coeff * float(np.mean(signs))
+    return energy
