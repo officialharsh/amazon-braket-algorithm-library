@@ -1,5 +1,5 @@
 {
-  "description": "Cached covalent thia-Michael (cysteine-warhead model) per-species energies, used by the notebook so the covalent example displays without the heavy geometry/HF dependencies. The notebook reads this file rather than hardcoding the numbers in a cell. Regenerate with the companion scripts: thia_michael.py (local FCI and VQE per species) and sv1_covalent.py (Amazon Braket SV1 evaluation). The sulfur-containing species require RDKit, PySCF, and basis-set-exchange.",
+  "description": "Cached covalent thia-Michael (cysteine-warhead model) per-species energies, used by the notebook so the covalent example displays without the heavy geometry/HF dependencies. The notebook reads this file rather than hardcoding the numbers in a cell. This file is written by the companion script sv1_covalent.py (run it to regenerate). The sulfur-containing species require RDKit, PySCF, and basis-set-exchange.",
   "reaction": "H2S + acrylonitrile -> NC-CH2-CH2-SH (covalent adduct)",
   "method": "CAS(4,4) / 8 qubits per species, STO-3G; FCI by exact diagonalization, VQE by AllSinglesDoubles",
   "hartree_to_kcal_per_mol": 627.509469,
@@ -9,5 +9,6 @@
     "adduct":        {"fci_ha": -562.02107328, "vqe_fci_dev_mha": 0.0002}
   },
   "binding_energy_formula": "adduct - H2S - acrylonitrile",
+  "binding_energy_kcal_per_mol_fci": -15.49,
   "notes": "The covalent binding energy is exothermic (a covalent bond forms), consistent with experimental thia-Michael additions. VQE reproduces the exact active-space FCI energy to better than 0.02 mHa for every species, so the VQE and FCI binding energies agree to about 0.01 kcal/mol. Absolute values are at the STO-3G / CAS(4,4) level: illustrative, not converged to chemical accuracy."
 }
