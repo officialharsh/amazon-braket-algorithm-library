@@ -1,10 +1,10 @@
 # Additional open-source dependencies for the VQE chemistry notebook, on top of the
-# amazon-braket-algorithm-library install. All are Apache-2.0 / BSD / LGPL compatible.
+# amazon-braket-algorithm-library install. The quantum chemistry functionality (qml.qchem)
+# is bundled inside PennyLane itself, so there is no separate qchem package to install.
 pennylane>=0.40
 amazon-braket-pennylane-plugin>=1.30
-pennylane-qchem>=0.40
 scipy>=1.10
-matplotlib>=3.7
-# Optional, only for the covalent (thia-Michael) drug-binding example geometry build:
+# Optional, only to regenerate the covalent (thia-Michael) geometries in sv1_covalent.py:
 #   pyscf>=2.5
 #   rdkit>=2024.3
+#   basis-set-exchange
