@@ -63,11 +63,44 @@ jupyter nbconvert --to notebook --execute \
 - Exact FCI energy -74.97045997 Ha; VQE energy about -74.97045965 Ha; error about 0.0003 mHa
   (inside the 1.6 mHa chemical-accuracy band); device "local".
 - SV1 cell prints "RUN_ON_SV1 is False" and is skipped.
-- (H2)2 size-consistency check: about 0.0000 kcal/mol.
-- Covalent thia-Michael: -15.49 kcal/mol (FCI), VQE agrees to about 0.01 kcal/mol.
+- (H2)2 binding (computed live): E(complex) -2.27423484 Ha, E(H2 fragment) -1.13727594 Ha,
+  binding +0.20 kcal/mol (weakly repulsive; STO-3G captures no dispersion).
+- Covalent thia-Michael (read from covalent_cached.json): -15.49 kcal/mol (FCI), VQE agrees to
+  about 0.01 kcal/mol, max per-species deviation 0.0164 mHa.
 - IonQ Forte table (from `ionq_forte_h2_cached.json`): exact and noiseless -1.13727594 Ha;
   raw -1.08728253 Ha (+49.99 mHa); debiased -1.08831764 Ha (+48.96 mHa).
 - QPU cell prints "SUBMIT_TO_QPU is False" and is skipped.
+
+## Reproducing every number
+
+Some values are computed live in the notebook; others are cached so Run All stays free and
+offline. Here is what each is and how to regenerate it.
+
+| Value | How it is produced | Live in notebook? |
+|-------|--------------------|-------------------|
+| Water CAS(4,4) VQE/FCI | computed live by the module | Yes |
+| (H2)2 binding (+0.20 kcal/mol) | computed live (real 4-atom dimer) | Yes |
+| Covalent binding (-15.49 kcal/mol) | read from `covalent_cached.json` | No (cached) |
+| IonQ Forte table | read from `ionq_forte_h2_cached.json` | No (cached) |
+
+Regenerate the cached data files:
+
+```bash
+# Covalent: writes covalent_cached.json from a free FCI + local VQE calculation.
+# Needs RDKit + PySCF + basis-set-exchange (for the sulfur STO-3G basis). No AWS required.
+python sv1_covalent.py
+# Add --sv1 to also evaluate each species on Amazon Braket SV1 (billable) and write sv1_covalent.txt:
+python sv1_covalent.py --sv1
+
+# Hardware: real IonQ Forte runs (billable), then independent recomputation from S3.
+python h2_ionq_forte.py --submit
+python h2_ionq_mitigated.py --submit
+python verify_result.py <task-arn-1> <task-arn-2> ...        # or set BRAKET_TASK_ARNS
+python verify_mitigated.py <task-arn-1> <task-arn-2> ...
+```
+
+Note: RDKit conformer generation is stochastic, so re-running `sv1_covalent.py` may differ at the
+last digits of the absolute energies; the binding energy is stable to about 0.01 kcal/mol.
 
 ## Running the billable AWS paths (optional)
 
@@ -80,7 +113,8 @@ In the imports cell:
 On a Braket notebook instance the execution role supplies credentials. Locally, configure AWS
 credentials for us-east-1 first. To reproduce the cached hardware energies from completed tasks,
 `verify_result.py` and `verify_mitigated.py` accept your own task ARNs via CLI arguments or the
-`BRAKET_TASK_ARNS` environment variable.
+`BRAKET_TASK_ARNS` environment variable. To regenerate the covalent cache on Amazon Braket SV1,
+run `sv1_covalent.py --sv1` (billable); without `--sv1` it regenerates the same file for free.
 
 ## Cost note
 

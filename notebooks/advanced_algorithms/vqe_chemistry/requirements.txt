@@ -4,7 +4,8 @@
 pennylane>=0.40
 amazon-braket-pennylane-plugin>=1.30
 scipy>=1.10
-# Optional, only to regenerate the covalent (thia-Michael) geometries in sv1_covalent.py:
+# Optional, needed only to run sv1_covalent.py (which regenerates covalent_cached.json).
+# The notebook itself does NOT need these; it reads the cached file.
 #   pyscf>=2.5
 #   rdkit>=2024.3
 #   basis-set-exchange
