@@ -1,0 +1,30 @@
+{
+  "description": "Cached results of a real H2 (4-qubit, STO-3G) VQE energy evaluation on IonQ Forte Enterprise via Amazon Braket. Loaded by the notebook so Cells > Run All completes without resubmitting billable QPU tasks. Each energy was independently recomputed from the completed Amazon Braket S3 task data (see verify_result.py / verify_mitigated.py).",
+  "device_arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-Enterprise-1",
+  "molecule": "H2",
+  "basis": "sto-3g",
+  "active_space": "CAS(2,2)",
+  "n_qubits": 4,
+  "bond_length_bohr": 1.4,
+  "ansatz": "Hartree-Fock + single DoubleExcitation (1 parameter)",
+  "fci_energy_ha": -1.13727594,
+  "runs": [
+    {
+      "label": "raw (unmitigated)",
+      "shots": 2000,
+      "energy_ha": -1.08728253,
+      "error_vs_fci_mha": 49.99,
+      "measurement_groups": 5,
+      "verified_from_s3": true
+    },
+    {
+      "label": "error-mitigated (IonQ debiasing + sharpening)",
+      "shots": 2500,
+      "energy_ha": -1.08831764,
+      "error_vs_fci_mha": 48.96,
+      "measurement_groups": 5,
+      "verified_from_s3": true
+    }
+  ],
+  "notes": "The variational principle guarantees the hardware energy is an upper bound on FCI, so the error is positive. Debiasing improved the result by about 1 mHa, which indicates the residual error is dominated by incoherent two-qubit-gate noise and decoherence rather than coherent bias. Reaching chemical accuracy (1.6 mHa) on this circuit needs the fuller mitigation stack (readout mitigation, symmetry post-selection, zero-noise extrapolation)."
+}

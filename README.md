@@ -34,6 +34,7 @@ Running notebooks locally requires additional dependencies located in [notebooks
 | QMC | [Quantum_Computing_Quantum_Monte_Carlo.ipynb](notebooks/advanced_algorithms/Quantum_Computing_Quantum_Monte_Carlo.ipynb) | [Motta2018](https://wires.onlinelibrary.wiley.com/doi/10.1002/wcms.1364), [Peruzzo2014](https://www.nature.com/articles/ncomms5213) |
 | Adaptive Shot Allocation | [2_Adaptive_Shot_Allocation.ipynb](notebooks/advanced_algorithms/adaptive_shot_allocation/2_Adaptive_Shot_Allocation.ipynb) | [Shlosberg2023](https://doi.org/10.22331/q-2023-01-26-906) |
 | HHL Algorithm | [HHL_Algorithm.ipynb](notebooks/advanced_algorithms/HHL_Algorithm.ipynb) | [Harrow2009](https://arxiv.org/abs/0811.3171) |
+| VQE for molecular binding energies | [VQE_Chemistry_Binding_Energy.ipynb](notebooks/advanced_algorithms/vqe_chemistry/VQE_Chemistry_Binding_Energy.ipynb) | [Peruzzo2014](https://www.nature.com/articles/ncomms5213), [Grimsley2019](https://www.nature.com/articles/s41467-019-10988-2) |
 
 
 | Auxiliary functions | Notebook |
